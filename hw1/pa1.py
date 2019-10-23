@@ -73,7 +73,18 @@ def get_pixels_sampled_from_p_x_joint_z1_z2():
     discarding the z part.
     TODO. 
     '''
-	pass
+    z1_vals = np.linspace(-3, 3, 25)
+    z2_vals = np.linspace(-3, 3, 25)
+    p_z1_vals = [get_p_z1(z1_val) for z1_val in z1_vals]
+    p_z2_vals = [get_p_z2(z2_val) for z2_val in z2_vals]
+    z1_val = z1_vals[np.random.multinomial(1, p_z1_vals).astype(bool)][0]
+    z2_val = z2_vals[np.random.multinomial(1, p_z2_vals).astype(bool)][0]
+    sample_image = np.zeros(28*28)
+    for i in range(28*28):
+        sample_image[i] = np.random.binomial(
+            1, get_p_xk_cond_z1_z2(z1_val, z2_val, i+1))
+    return sample_image
+
 
 def get_conditional_expectation(data):
     '''
