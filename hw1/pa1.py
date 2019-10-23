@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle as pkl
 from scipy.io import loadmat
+from scipy.misc import logsumexp
 
 
 def plot_histogram(data, title='histogram', xlabel='value', ylabel='frequency', savefile='hist'):
@@ -62,7 +63,8 @@ def get_p_x_cond_z1_z2(z1_val, z2_val):
     given that z1 assumes value z1_val and z2 assumes value z2_val
     TODO
     '''
-    x_mean = np.array([get_p_xk_cond_z1_z2(z1_val, z2_val, i+1) for i in range(28*28)])
+    x_mean = np.array([get_p_xk_cond_z1_z2(z1_val, z2_val, i+1)
+                       for i in range(28*28)])
     return x_mean
 
 
@@ -86,10 +88,21 @@ def get_pixels_sampled_from_p_x_joint_z1_z2():
 
 
 def get_conditional_expectation(data):
-    '''
-    TODO
-    '''
-    pass
+    z1_mean = np.zeros(len(data))
+    z2_mean = np.zeros(len(data))
+    for i, image in enumerate(data):
+        sum_cond_ll = 0
+        z_mean = np.zeros(2)
+        for z1_val in disc_z1:
+            for z2_val in disc_z2:
+                cond_ll = np.exp(
+                    get_log_conditional_expectation(image, z1_val, z2_val))
+                z_mean += cond_ll * np.array([z1_val, z2_val])
+                sum_cond_ll += cond_ll
+        z_mean /= sum_cond_ll
+        z1_mean[i] = z_mean[0]
+        z2_mean[i] = z_mean[1]
+    return z1_mean, z2_mean
 
 
 def q4():
@@ -134,6 +147,28 @@ def q5():
     return
 
 
+def get_log_conditional_expectation(data, z1_val, z2_val):
+    '''
+    TODO
+    '''
+    ll_one = bayes_net['cond_likelihood'][(z1_val, z2_val)][0, :]
+    # ll = [get_p_xk_cond_z1_z2(z1_val, z2_val, i+1) if xi == 1 else 1 -
+    #       get_p_xk_cond_z1_z2(z1_val, z2_val, i+1) for i, xi in enumerate(data)]
+    ll = data * ll_one + (1 - data) * (1 - ll_one)
+    return np.sum(np.log(ll)) + np.log(get_p_z1(z1_val)) + np.log(get_p_z2(z2_val))
+
+
+def marginal_log_likelihood(data):
+    log_likelihood = np.zeros(len(data))
+    for i, image in enumerate(data):
+        if i == 100:
+            print(i)
+        cond_ll = [get_log_conditional_expectation(
+            image, z1_val, z2_val) for z1_val in disc_z1 for z2_val in disc_z2]
+        log_likelihood[i] = logsumexp(cond_ll)
+    return log_likelihood
+
+
 def q6():
     '''
     Loads the data and plots the histograms. Rest is TODO.
@@ -146,6 +181,17 @@ def q6():
     '''
 	TODO
 	'''
+    real_marginal_log_likelihood = []
+    corrupt_marginal_log_likelihood = []
+    marginal_ll_val = marginal_log_likelihood(val_data)
+    mean_val = np.mean(marginal_ll_val)
+    std_val = np.std(marginal_ll_val)
+    marginal_ll_test = marginal_log_likelihood(test_data)
+    for ll in marginal_ll_test:
+        if abs(ll - mean_val) > 3*std_val:
+            corrupt_marginal_log_likelihood.append(ll)
+        else:
+            real_marginal_log_likelihood.append(ll)
 
     plot_histogram(real_marginal_log_likelihood, title='Histogram of marginal log-likelihood for real data',
                    xlabel='marginal log-likelihood', savefile='a6_hist_real')
@@ -208,9 +254,9 @@ def main():
 	TODO: Using the above Bayesian Network model, complete the following parts.
 	'''
     # q4()
-    q5()
+    # q5()
     # q6()
-    # q7()
+    q7()
 
     return
 
