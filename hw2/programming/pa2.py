@@ -115,17 +115,32 @@ class NBClassifier(object):
         variable and also the log of the conditional probability of this
         assignment in a tuple, e.g. return (c_pred, logP_c_pred)
         '''
-        logP_join_c0 = np.sum(
-            [np.log(cpt.get_cond_prob(entry, 0)) for cpt in self.cpts]) + np.log(self.p_c[0])
-        logP_join_c1 = np.sum(
-            [np.log(cpt.get_cond_prob(entry, 1)) for cpt in self.cpts]) + np.log(self.p_c[1])
-        P_c_0 = np.exp(logP_join_c0) / \
-            (np.exp(logP_join_c0) + np.exp(logP_join_c1))
-        P_c_1 = 1 - P_c_0
-        if P_c_1 > P_c_0:
-            return (1, np.log(P_c_1))
+        join_c_0 = self.sum_helper(entry, 0)
+        join_c_1 = self.sum_helper(entry, 1)
+        cond_c_0 = join_c_0 / (join_c_0 + join_c_1)
+        cond_c_1 = 1 - cond_c_0
+        if cond_c_1 > cond_c_0:
+            return (1, np.log(cond_c_1))
         else:
-            return (0, np.log(P_c_0))
+            return (0, np.log(cond_c_0))
+
+    def sum_helper(self, entry, c):
+        missing_idxs = np.flatnonzero(entry == -1)
+        if missing_idxs.size == 0:
+            logP_join_c0 = np.sum(
+                [np.log(cpt.get_cond_prob(entry, 0)) for cpt in self.cpts]) + np.log(self.p_c[0])
+            logP_join_c1 = np.sum(
+                [np.log(cpt.get_cond_prob(entry, 1)) for cpt in self.cpts]) + np.log(self.p_c[1])
+            if c == 0:
+                return np.exp(logP_join_c0)
+            return np.exp(logP_join_c1)
+        else:
+            missing_idx = missing_idxs[0]
+            entry0 = np.copy(entry)
+            entry0[missing_idx] = 0
+            entry1 = np.copy(entry)
+            entry1[missing_idx] = 1
+            return self.sum_helper(entry0, c) + self.sum_helper(entry1, c)
 
 
 # --------------------------------------------------------------------------
@@ -243,17 +258,46 @@ class TANBClassifier(NBClassifier):
         variable and also the log of the conditional probability of this
         assignment in a tuple, e.g. return (c_pred, logP_c_pred)
         '''
-        logP_join_c0 = np.sum(
-            [np.log(cpt.get_cond_prob(entry, 0)) for cpt in self.cpts]) + np.log(self.p_c[0])
-        logP_join_c1 = np.sum(
-            [np.log(cpt.get_cond_prob(entry, 1)) for cpt in self.cpts]) + np.log(self.p_c[1])
-        P_c_0 = np.exp(logP_join_c0) / \
-            (np.exp(logP_join_c0) + np.exp(logP_join_c1))
-        P_c_1 = 1 - P_c_0
-        if P_c_1 > P_c_0:
-            return (1, np.log(P_c_1))
+        join_c_0 = self.sum_helper(entry, 0)
+        join_c_1 = self.sum_helper(entry, 1)
+        cond_c_0 = join_c_0 / (join_c_0 + join_c_1)
+        cond_c_1 = 1 - cond_c_0
+        if cond_c_1 > cond_c_0:
+            return (1, np.log(cond_c_1))
         else:
-            return (0, np.log(P_c_0))
+            return (0, np.log(cond_c_0))
+
+    def sum_helper(self, entry, c):
+        missing_idxs = np.flatnonzero(entry == -1)
+        if missing_idxs.size == 0:
+            logP_join_c0 = np.sum(
+                [np.log(cpt.get_cond_prob(entry, 0)) for cpt in self.cpts]) + np.log(self.p_c[0])
+            logP_join_c1 = np.sum(
+                [np.log(cpt.get_cond_prob(entry, 1)) for cpt in self.cpts]) + np.log(self.p_c[1])
+            if c == 0:
+                return np.exp(logP_join_c0)
+            return np.exp(logP_join_c1)
+        else:
+            missing_idx = missing_idxs[0]
+            entry0 = np.copy(entry)
+            entry0[missing_idx] = 0
+            entry1 = np.copy(entry)
+            entry1[missing_idx] = 1
+            return self.sum_helper(entry0, c) + self.sum_helper(entry1, c)
+
+    def missing_posterior(self, entry, missing_idx):
+        entry0 = np.copy(entry)
+        entry0[missing_idx] = 0
+        entry1 = np.copy(entry)
+        entry1[missing_idx] = 1
+        join_m_0 = self.sum_helper(entry0, 0) + self.sum_helper(entry0, 1)
+        join_m_1 = self.sum_helper(entry1, 0) + self.sum_helper(entry1, 1)
+        cond_m_0 = join_m_0 / (join_m_0 + join_m_1)
+        cond_m_1 = 1 - cond_m_0
+        if cond_m_1 > cond_m_0:
+            return (1, np.log(cond_m_1))
+        else:
+            return (0, np.log(cond_m_0))
 
 
 # load all data
@@ -328,23 +372,45 @@ def evaluate_incomplete_entry(classifier_cls):
 
     return
 
+def evaluate_missing_posterior(classifier_cls, missing_idx):
+    global A_base, C_base
+
+    # train a TANB classifier on the full dataset
+    classifier = classifier_cls(A_base, C_base)
+
+    # load incomplete entry 1
+    entry = load_incomplete_entry()
+
+    m_pred, logP_m_pred = classifier.missing_posterior(entry, missing_idx)
+
+    print('  P(M={}|A_observed) = {:2.4f}'.format(m_pred, np.exp(logP_m_pred)))
+
+    return
+
 
 def main():
     '''
     TODO modify or add calls to evaluate() to evaluate your implemented
     classifiers
     '''
+    # print('NB Classifier')
+    # accuracy, num_examples = evaluate(NBClassifier, train_subset=False)
+    # print('  10-fold cross validation total test accuracy {:2.4f} on {} examples'.format(
+    #     accuracy, num_examples))
 
-    print('TANB Classifier')
-    accuracy, num_examples = evaluate(TANBClassifier, train_subset=False)
-    print('  10-fold cross validation total test accuracy {:2.4f} on {} examples'.format(
-        accuracy, num_examples))
+    # print('TANB Classifier')
+    # accuracy, num_examples = evaluate(TANBClassifier, train_subset=False)
+    # print('  10-fold cross validation total test accuracy {:2.4f} on {} examples'.format(
+    #     accuracy, num_examples))
 
-    # print 'Naive Bayes Classifier on missing data'
+    # print('Naive Bayes Classifier on missing data')
     # evaluate_incomplete_entry(NBClassifier)
 
-    # print 'TANB Classifier on missing data'
+    # print('TANB Classifier on missing data')
     # evaluate_incomplete_entry(TANBClassifier)
+
+    print('Posterior of A12')
+    evaluate_missing_posterior(TANBClassifier, 11)
 
 
 if __name__ == '__main__':
