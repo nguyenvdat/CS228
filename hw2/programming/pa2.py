@@ -393,15 +393,15 @@ def main():
     TODO modify or add calls to evaluate() to evaluate your implemented
     classifiers
     '''
-    # print('NB Classifier')
-    # accuracy, num_examples = evaluate(NBClassifier, train_subset=False)
-    # print('  10-fold cross validation total test accuracy {:2.4f} on {} examples'.format(
-    #     accuracy, num_examples))
+    print('NB Classifier')
+    accuracy, num_examples = evaluate(NBClassifier, train_subset=True)
+    print('  10-fold cross validation total test accuracy {:2.4f} on {} examples'.format(
+        accuracy, num_examples))
 
-    # print('TANB Classifier')
-    # accuracy, num_examples = evaluate(TANBClassifier, train_subset=False)
-    # print('  10-fold cross validation total test accuracy {:2.4f} on {} examples'.format(
-    #     accuracy, num_examples))
+    print('TANB Classifier')
+    accuracy, num_examples = evaluate(TANBClassifier, train_subset=True)
+    print('  10-fold cross validation total test accuracy {:2.4f} on {} examples'.format(
+        accuracy, num_examples))
 
     # print('Naive Bayes Classifier on missing data')
     # evaluate_incomplete_entry(NBClassifier)
@@ -409,8 +409,8 @@ def main():
     # print('TANB Classifier on missing data')
     # evaluate_incomplete_entry(TANBClassifier)
 
-    print('Posterior of A12')
-    evaluate_missing_posterior(TANBClassifier, 11)
+    # print('Posterior of A12')
+    # evaluate_missing_posterior(TANBClassifier, 11)
 
 
 if __name__ == '__main__':
