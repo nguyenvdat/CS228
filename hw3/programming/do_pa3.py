@@ -81,22 +81,48 @@ def constructFactorGraph(yTilde, H, epsilon):
     N = H.shape[0]
     M = H.shape[1]
     G = FactorGraph(numVar=M, numFactor=N+M)
-    G.var = range(M)
+    G.var = list(range(M))
     ##############################################################
     # To do: your code starts here
+    factors = []
     # Add unary factors
-
+    for var in range(M):
+        scope = [var]
+        card = [2]
+        if yTilde[var] == 0:
+            val = np.array([1 - epsilon, epsilon])
+        else:
+            val = np.array([epsilon, 1 - epsilon])
+        G.varToFactor[var].append(len(factors))
+        G.factorToVar[len(factors)] = [var]
+        factors.append(Factor(scope=scope, card=card, val=val))
     # Add parity factors
     # You may find the function itertools.product useful
     # (https://docs.python.org/2/library/itertools.html#itertools.product)
-
+    all_var = np.array(range(M))
+    for factor in range(M, M+N):
+        n_var = sum(H[factor-M,:])
+        mask = [True if x == 1 else False for x in H[factor-M,:]]
+        scope = list(all_var[mask])
+        card = [2] * len(scope)
+        val = np.zeros(np.prod(card))
+        val_idx = 0
+        for var in scope:
+            G.varToFactor[var].append(factor)
+        G.factorToVar[factor] = scope
+        for ass in itertools.product([0, 1], repeat=n_var):
+            val[val_idx] = 1 if sum(ass) % 2 == 0 else 0
+            val_idx += 1
+        factors.append(Factor(scope=scope, card=card, val=val))
+    G.factors = factors
     ##############################################################
+
     return G
 
 
 def do_part_a():
     yTilde = np.array([[1, 1, 1, 1, 1, 1]]).reshape(6, 1)
-    print "yTilde.shape", yTilde.shape
+    print("yTilde.shape", yTilde.shape)
     H = np.array([
         [0, 1, 1, 0, 1, 0],
         [0, 1, 0, 1, 1, 0],
@@ -160,16 +186,29 @@ def do_part_fg(error):
 
 
     ################################################################
-print('Doing part (a): Should see 0.0, 0.0, >0.0')
-do_part_a()
-print('Doing part (c)')
-do_part_c()
-print('Doing part (d)')
+# print('Doing part (a): Should see 0.0, 0.0, >0.0')
+# do_part_a()
+# print('Doing part (c)')
+# do_part_c()
+# print('Doing part (d)')
 #do_part_de(10, 0.06)
-print('Doing part (e)')
+# print('Doing part (e)')
 #do_part_de(10, 0.08)
 #do_part_de(10, 0.10)
-print('Doing part (f)')
+# print('Doing part (f)')
 # do_part_fg(0.06)
-print('Doing part (g)')
+# print('Doing part (g)')
 # do_part_fg(0.10)
+
+yTilde = [0, 1, 0]
+H = np.array([[1, 1, 0], [1, 0, 1]])
+G = constructFactorGraph(yTilde, H, 0.1)
+print(G.var)
+print()
+print(G.domain)
+print()
+print(G.varToFactor)
+print()
+print(G.factorToVar)
+print()
+print(G.factors)
