@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import itertools
 from factor_graph import *
 from factors import *
-
+from matplotlib.pyplot import cm
 
 def loadLDPC(name):
     """
@@ -188,6 +188,30 @@ def do_part_de(numTrials, error, iterations=50):
     G, H = loadLDPC('ldpc36-128.mat')
     ##############################################################
     # To do: your code starts here
+    N = G.shape[1]
+    x = np.zeros((N, 1), dtype='int32')
+    y = encodeMessage(x, G)
+    M = len(y)
+    color=iter(cm.rainbow(np.linspace(0,1,numTrials)))
+    legend_list = []
+    legend_name = []
+    for ex in range(numTrials):
+        print(ex)
+        yTilde = applyChannelNoise(y, error)
+        G = constructFactorGraph(yTilde, H, error)
+        hamming_distance = np.zeros(iterations)
+        for i in range(iterations):
+            G.runParallelLoopyBP(1)
+            marginal_map = G.getMarginalMAP()
+            hamming_distance[i] = np.sum(marginal_map != y.flatten())
+        line, = plt.plot(range(iterations), hamming_distance, c=next(color))
+        legend_list.append(line)
+        legend_name.append('Exp ' + str(ex + 1))
+    plt.ylabel('hamming distance')
+    plt.xlabel('iterations')
+    plt.legend(legend_list, legend_name)
+    plt.xticks(np.arange(0, iterations+1, 1))
+    plt.show()
 
     ##############################################################
 
@@ -205,10 +229,10 @@ def do_part_fg(error):
     ################################################################
 # print('Doing part (a): Should see 0.0, 0.0, >0.0')
 # do_part_a()
-print('Doing part (c)')
-do_part_c()
-# print('Doing part (d)')
-#do_part_de(10, 0.06)
+# print('Doing part (c)')
+# do_part_c()
+print('Doing part (d)')
+do_part_de(10, 0.06)
 # print('Doing part (e)')
 #do_part_de(10, 0.08)
 #do_part_de(10, 0.10)
