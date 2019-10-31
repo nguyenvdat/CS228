@@ -84,8 +84,29 @@ class FactorGraph:
         '''      
         ###############################################################################
         # To do: your code here
-
-
+        for i in range(iterations):
+            # Pass message from var to factor
+            for var in self.var:
+                factors = self.varToFactor[var]
+                for factor in factors:
+                    other_factors = list(set(factors) - set([factor]))
+                    # self.messagesVarToFactor[(var, factor)] = self.getInMessage(var, factor, type="varToFactor")
+                    card=[len(self.domain[var])]
+                    self.messagesVarToFactor[(var, factor)] = Factor(scope=[var], card=card, val = np.ones(card)/card[0])
+                    for other_factor in other_factors:
+                        that_msg = self.getInMessage(other_factor, var, type="factorToVar")
+                        self.messagesVarToFactor[(var, factor)] = self.messagesVarToFactor[(var, factor)].multiply(that_msg)
+                    self.messagesVarToFactor[(var, factor)] = self.messagesVarToFactor[(var, factor)].normalize()
+            # Pass message from factor to var
+            for factor in range(len(self.factors)):
+                var_list = self.factorToVar[factor]
+                for var in var_list:
+                    other_vars = list(set(var_list) - set([var]))
+                    self.messagesFactorToVar[(factor, var)] = self.factors[factor]
+                    for other_var in other_vars:
+                        that_msg = self.getInMessage(other_var, factor, "varToFactor")
+                        self.messagesFactorToVar[(factor, var)] = self.messagesFactorToVar[(factor, var)].multiply(that_msg)
+                    self.messagesFactorToVar[(factor, var)] = self.messagesFactorToVar[(factor, var)].normalize()
 
         ###############################################################################
 
@@ -109,6 +130,13 @@ class FactorGraph:
         '''
         ###############################################################################
         # To do: your code here  
+        factor = self.varToFactor[var][0]
+        calibrated_factor = self.factors[factor]
+        for var in self.factorToVar[factor]:
+            msg = self.getInMessage(var, factor, "varToFactor")
+            calibrated_factor = calibrated_factor.multiply(msg)
+        calibrated_factor = calibrated_factor.marginalize_all_but([var]).normalize()
+        return calibrated_factor.val
 
 
         ###############################################################################
@@ -128,6 +156,9 @@ class FactorGraph:
         output = np.zeros(len(self.var))
         ###############################################################################
         # To do: your code here  
+        for i, var in enumerate(self.var):
+            marginal = self.estimateMarginalProbability(var)
+            output[i] = max(marginal)
 
 
         ###############################################################################  
