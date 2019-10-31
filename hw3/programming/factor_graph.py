@@ -86,6 +86,7 @@ class FactorGraph:
         # To do: your code here
         for i in range(iterations):
             # Pass message from var to factor
+            print(i)
             for var in self.var:
                 factors = self.varToFactor[var]
                 for factor in factors:
@@ -100,13 +101,14 @@ class FactorGraph:
             # Pass message from factor to var
             for factor in range(len(self.factors)):
                 var_list = self.factorToVar[factor]
+                # print(factor)
                 for var in var_list:
                     other_vars = list(set(var_list) - set([var]))
                     self.messagesFactorToVar[(factor, var)] = self.factors[factor]
                     for other_var in other_vars:
                         that_msg = self.getInMessage(other_var, factor, "varToFactor")
                         self.messagesFactorToVar[(factor, var)] = self.messagesFactorToVar[(factor, var)].multiply(that_msg)
-                    self.messagesFactorToVar[(factor, var)] = self.messagesFactorToVar[(factor, var)].normalize()
+                    self.messagesFactorToVar[(factor, var)] = self.messagesFactorToVar[(factor, var)].marginalize_all_but([var]).normalize()
 
         ###############################################################################
 
@@ -158,7 +160,7 @@ class FactorGraph:
         # To do: your code here  
         for i, var in enumerate(self.var):
             marginal = self.estimateMarginalProbability(var)
-            output[i] = max(marginal)
+            output[i] = np.argmax(marginal)
 
 
         ###############################################################################  

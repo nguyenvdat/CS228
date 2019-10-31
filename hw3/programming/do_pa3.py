@@ -49,7 +49,9 @@ def applyChannelNoise(y, epsilon):
     '''
     ###############################################################################
     # TODO: Your code here!
-
+    yTilde = y.flatten()
+    mask = np.random.rand(len(y)) < epsilon
+    yTilde[mask] = 1 - yTilde[mask]
     ###############################################################################
     return yTilde
 
@@ -101,8 +103,8 @@ def constructFactorGraph(yTilde, H, epsilon):
     # (https://docs.python.org/2/library/itertools.html#itertools.product)
     all_var = np.array(range(M))
     for factor in range(M, M+N):
-        n_var = sum(H[factor-M,:])
-        mask = [True if x == 1 else False for x in H[factor-M,:]]
+        n_var = sum(H[factor-M, :])
+        mask = [True if x == 1 else False for x in H[factor-M, :]]
         scope = list(all_var[mask])
         card = [2] * len(scope)
         val = np.zeros(np.prod(card))
@@ -135,6 +137,9 @@ def do_part_a():
     #  Report their weights respectively.
 
     ##############################################################
+    ytest1 = [0, 1, 1, 0, 1, 0]
+    ytest2 = [1, 0, 0, 0, 1, 0]
+    ytest3 = [0, 0, 0, 0, 0, 0]
     print(
         G.evaluateWeight(ytest1),
         G.evaluateWeight(ytest2),
@@ -157,7 +162,20 @@ def do_part_c():
     y = encodeMessage(x, G)
     ##############################################################
     # To do: your code starts here
+    M = len(y)
+    yTilde = applyChannelNoise(y, epsilon)
+    G = constructFactorGraph(yTilde, H, epsilon)
+    G.runParallelLoopyBP(50)
 
+    pos_one = [G.estimateMarginalProbability(i)[1] for i in range(M)]
+    var_list = range(M)
+    plt.plot(var_list, pos_one)
+    plt.ylabel('posterior of one')
+    plt.xlabel('codeword bit')
+    plt.show()
+    y_new = G.getMarginalMAP()
+    print(sum(y_new == y.flatten()))
+    assert(sum(y_new == y.flatten()) == M)
     ##############################################################
 
 
@@ -184,12 +202,11 @@ def do_part_fg(error):
     # To do: your code starts here
     # You should flattern img first and treat it as the message x in the previous parts.
 
-
     ################################################################
 # print('Doing part (a): Should see 0.0, 0.0, >0.0')
 # do_part_a()
-# print('Doing part (c)')
-# do_part_c()
+print('Doing part (c)')
+do_part_c()
 # print('Doing part (d)')
 #do_part_de(10, 0.06)
 # print('Doing part (e)')
@@ -200,15 +217,23 @@ def do_part_fg(error):
 # print('Doing part (g)')
 # do_part_fg(0.10)
 
-yTilde = [0, 1, 0]
-H = np.array([[1, 1, 0], [1, 0, 1]])
-G = constructFactorGraph(yTilde, H, 0.1)
-print(G.var)
-print()
-print(G.domain)
-print()
-print(G.varToFactor)
-print()
-print(G.factorToVar)
-print()
-print(G.factors)
+
+# yTilde = [1, 1, 0, 1]
+# H = np.array([[1, 1, 0, 0], [1, 0, 0, 1]])
+# G = constructFactorGraph(yTilde, H, 0.2)
+# print(G.var)
+# print()
+# print(G.domain)
+# print()
+# print(G.varToFactor)
+# print()
+# print(G.factorToVar)
+# print()
+# print(G.factors)
+# G.runParallelLoopyBP(10)
+# print(G.estimateMarginalProbability(0))
+# print(G.estimateMarginalProbability(1))
+# print(G.estimateMarginalProbability(2))
+# print(G.estimateMarginalProbability(3))
+# print()
+# print(G.getMarginalMAP())
