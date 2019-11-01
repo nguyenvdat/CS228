@@ -225,19 +225,40 @@ def do_part_fg(error):
     ##############################################################
     # To do: your code starts here
     # You should flattern img first and treat it as the message x in the previous parts.
+    N, M = G.shape
+    fig=plt.figure(figsize=(8, 8))
+    columns = 4
+    rows = 2
+    y = encodeMessage(img.flatten(), G)
+    yTilde = applyChannelNoise(y, error)
+    G = constructFactorGraph(yTilde, H, error)
+    ax = []
+    idx = 1
+    for i in range(31):
+        G.runParallelLoopyBP(1)
+        if i in [0, 1, 2, 3, 5, 10, 20, 30]:
+            y_new = G.getMarginalMAP()
+            ax.append(fig.add_subplot(rows, columns, idx))
+            ax[-1].set_title("Iteration: " + str(i))
+            plt.imshow(y_new[0:M].reshape((40,40)), cmap='gray')
+            idx += 1
+    plt.show()
 
+
+
+    
     ################################################################
 # print('Doing part (a): Should see 0.0, 0.0, >0.0')
 # do_part_a()
 # print('Doing part (c)')
 # do_part_c()
-print('Doing part (d)')
-do_part_de(10, 0.06)
+# print('Doing part (d)')
+# do_part_de(10, 0.06)
 # print('Doing part (e)')
-#do_part_de(10, 0.08)
-#do_part_de(10, 0.10)
-# print('Doing part (f)')
-# do_part_fg(0.06)
+# do_part_de(10, 0.08)
+# do_part_de(10, 0.10)
+print('Doing part (f)')
+do_part_fg(0.06)
 # print('Doing part (g)')
 # do_part_fg(0.10)
 
