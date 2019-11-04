@@ -9,6 +9,7 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import Counter, defaultdict
+import pickle
 
 
 def markov_blanket(i, j, Y, X):
@@ -21,7 +22,15 @@ def markov_blanket(i, j, Y, X):
     ########
     # TODO #
     ########
-    pass
+    blanket = []
+    for i_idx in [-1, 1]:
+        for j_idx in [-1, 1]:
+            if i + i_idx >= 0 and i + i_idx < len(Y):
+                blanket.append(Y[i + i_idx][j])
+            if j + j_idx >= 0 and j + j_idx < len(Y[0]):
+                blanket.append(Y[i][j + j_idx])
+    blanket.append(X[i][j])
+    return blanket
 
 
 def sampling_prob(markov_blanket):
@@ -34,7 +43,9 @@ def sampling_prob(markov_blanket):
     ########
     # TODO #
     ########
-    pass
+    raw_prob_one = np.exp(sum(markov_blanket))
+    raw_prob_zero = 1
+    return raw_prob_one/(raw_prob_one + raw_prob_zero)
 
 
 def sample(i, j, Y, X, DUMB_SAMPLE=0):
@@ -78,13 +89,46 @@ def get_posterior_by_sampling(filename, initialization='same', logfile=None, DUM
         frequencyZ: a dictionary with key: count the number of 1's in the Z region
                                       value: frequency of such count
     '''
-    print "Read the file"
+    print("Read the file")
     Y = read_txt_file(filename)
 
     ########
     # TODO #
     ########
-    pass
+    nabla = 1
+    beta = 1
+    B = 100
+    S = 1000
+    X = Y
+    if initialization == 'same':
+        Y = X
+    elif initialization == 'neg':
+        Y = [[-X[i][j] for j in range(len(X[0]))] for i in range(len(X))]
+    else:
+        Y = [[1 if random.random() < 0.5 else -1 for j in range(len(X[0]))]
+             for i in range(len(X))]
+    f = open(logfile, "w")
+    posterior = np.zeros_like(Y)
+    for t in range(B + S):
+        if t % 100 == 0:
+            print(t)
+        energy = 0
+        for i in range(len(Y)):
+            for j in range(len(Y[0])):
+                Y[i][j] = sample(i, j, Y, X, DUMB_SAMPLE)
+                energy -= nabla * Y[i][j] * X[i][j]
+                if i >= 1:
+                    energy -= beta * Y[i][j] * Y[i - 1][j]
+                if j >= 1:
+                    energy -= beta * Y[i][j] * Y[i][j - 1]
+        if t < B:
+            f.write(str(t + 1) + "\t" + str(energy) + "\t" + "B\n")
+        else:
+            f.write(str(t + 1) + "\t" + str(energy) + "\t" + "S\n")
+            posterior += Y
+    f.close()
+    posterior = posterior / S
+    return posterior, None, None
 
 
 def denoise_image(filename, initialization='rand', logfile=None, DUMB_SAMPLE=0):
@@ -96,8 +140,8 @@ def denoise_image(filename, initialization='rand', logfile=None, DUMB_SAMPLE=0):
             filename, initialization, logfile=logfile, DUMB_SAMPLE=DUMB_SAMPLE)
 
     if DUMB_SAMPLE:
-        for i in xrange(len(Y)):
-            for j in xrange(len(Y[0])):
+        for i in range(len(Y)):
+            for j in range(len(Y[0])):
                 Y[i][j] = .5*(1.0-Y[i][j])  # 1, -1 --> 1, 0
         return Y, frequencyZ
     else:
@@ -133,7 +177,7 @@ def plot_energy(filename):
                 its_sample.append(it)
                 energies_sample.append(en)
             else:
-                print "bad phase: -%s-" % phase
+                print("bad phase: -%s-" % phase)
 
     p1, = plt.plot(its_burn, energies_burn, 'r')
     p2, = plt.plot(its_sample, energies_sample, 'b')
@@ -189,6 +233,11 @@ def perform_part_c():
     ########
     # TODO #
     ########
+    denoise_image('noisy_20.txt', 'rand', 'log_rand')
+    denoise_image('noisy_20.txt', 'neg', 'log_neg')
+    denoised, frequencyZ = denoise_image('noisy_20.txt', 'same', 'log_same')
+    file = open('denoised_20', 'wb')
+    pickle.dump(denoised, file)
 
     # plot out the energy functions
     plot_energy("log_rand")
@@ -243,6 +292,6 @@ def perform_part_f():
 
 if __name__ == "__main__":
     perform_part_c()
-    perform_part_d()
-    perform_part_e()
-    perform_part_f()
+    # perform_part_d()
+    # perform_part_e()
+    # perform_part_f()
