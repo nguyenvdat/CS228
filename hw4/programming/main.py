@@ -107,9 +107,11 @@ def get_posterior_by_sampling(filename, initialization='same', logfile=None, DUM
     else:
         Y = [[1 if random.random() < 0.5 else -1 for j in range(len(X[0]))]
              for i in range(len(X))]
-    f = open(logfile, "w")
+    if not DUMB_SAMPLE:
+        f = open(logfile, "w")
     posterior = np.zeros_like(Y)
     for t in range(B + S):
+        old_Y = copy.deepcopy(Y)
         if t % 100 == 0:
             print(t)
         energy = 0
@@ -121,14 +123,23 @@ def get_posterior_by_sampling(filename, initialization='same', logfile=None, DUM
                     energy -= beta * Y[i][j] * Y[i - 1][j]
                 if j >= 1:
                     energy -= beta * Y[i][j] * Y[i][j - 1]
-        if t < B:
-            f.write(str(t + 1) + "\t" + str(energy) + "\t" + "B\n")
+        if DUMB_SAMPLE:
+            if old_Y == Y:
+                print('Converged')
+                break
+            if t >= 30:
+                print('Not converged')
+                break
         else:
-            f.write(str(t + 1) + "\t" + str(energy) + "\t" + "S\n")
-            posterior = posterior + (np.array(Y) == 1)
-    f.close()
+            if t < B:
+                f.write(str(t + 1) + "\t" + str(energy) + "\t" + "B\n")
+            else:
+                f.write(str(t + 1) + "\t" + str(energy) + "\t" + "S\n")
+                posterior = posterior + (np.array(Y) == 1)
+    if not DUMB_SAMPLE:
+        f.close()
     posterior = posterior / S
-    return posterior, None, None
+    return posterior, Y, None
 
 
 def denoise_image(filename, initialization='rand', logfile=None, DUMB_SAMPLE=0):
@@ -140,9 +151,9 @@ def denoise_image(filename, initialization='rand', logfile=None, DUMB_SAMPLE=0):
             filename, initialization, logfile=logfile, DUMB_SAMPLE=DUMB_SAMPLE)
 
     if DUMB_SAMPLE:
-        for i in range(len(Y)):
-            for j in range(len(Y[0])):
-                Y[i][j] = .5*(1.0-Y[i][j])  # 1, -1 --> 1, 0
+        # for i in range(len(Y)):
+        #     for j in range(len(Y[0])):
+        #         Y[i][j] = .5*(1.0-Y[i][j])  # 1, -1 --> 1, 0
         return Y, frequencyZ
     else:
         denoised = -np.ones(posterior.shape)
@@ -301,10 +312,38 @@ def perform_part_e():
     ########
     # TODO #
     ########
-
+    denoised_dumb_10, _ = denoise_image(filename='noisy_10.txt', DUMB_SAMPLE=1)
+    denoised_dumb_20, _ = denoise_image(filename='noisy_20.txt', DUMB_SAMPLE=1)
     # save denoised images to png figures
     convert_to_png(denoised_dumb_10, "denoised_dumb_10")
     convert_to_png(denoised_dumb_20, "denoised_dumb_20")
+
+    orig_img = read_txt_file('orig.txt')
+    noise_level = ['10', '20']
+    print('Dumb Noisy 10 error: ' + str(get_error(denoised_dumb_10, orig_img)))
+    print('Dumb Noisy 20 error: ' + str(get_error(denoised_dumb_20, orig_img)))
+    rows = 1
+    columns = 3
+    for noise in noise_level:
+        fig = plt.figure(figsize=(9, 3))
+        ax = []
+        ax.append(fig.add_subplot(rows, columns, 1))
+        ax[-1].set_title('Original')
+        img = plt.imread('orig_img.png')
+        plt.imshow(img)
+        plt.axis('off')
+        ax.append(fig.add_subplot(rows, columns, 2))
+        ax[-1].set_title('Noisy')
+        img = plt.imread('noisy_' + noise + '.png')
+        plt.imshow(img)
+        plt.axis('off')
+        ax.append(fig.add_subplot(rows, columns, 3))
+        ax[-1].set_title('Denoised')
+        img = plt.imread('denoised_dumb_' + noise + '.png')
+        plt.imshow(img)
+        plt.axis('off')
+        plt.savefig('compare_dumb'+str(noise))
+    plt.close()
 
 
 def perform_part_f():
@@ -327,6 +366,6 @@ def perform_part_f():
 
 if __name__ == "__main__":
     # perform_part_c()
-    perform_part_d()
-    # perform_part_e()
+    # perform_part_d()
+    perform_part_e()
     # perform_part_f()
