@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from collections import Counter, defaultdict
 import pickle
+import copy
 
 
 def markov_blanket(i, j, Y, X):
@@ -24,11 +25,11 @@ def markov_blanket(i, j, Y, X):
     ########
     blanket = []
     for i_idx in [-1, 1]:
-        for j_idx in [-1, 1]:
-            if i + i_idx >= 0 and i + i_idx < len(Y):
-                blanket.append(Y[i + i_idx][j])
-            if j + j_idx >= 0 and j + j_idx < len(Y[0]):
-                blanket.append(Y[i][j + j_idx])
+        if i + i_idx >= 0 and i + i_idx < len(Y):
+            blanket.append(Y[i + i_idx][j])
+    for j_idx in [-1, 1]:
+        if j + j_idx >= 0 and j + j_idx < len(Y[0]):
+            blanket.append(Y[i][j + j_idx])
     blanket.append(X[i][j])
     return blanket
 
@@ -44,8 +45,8 @@ def sampling_prob(markov_blanket):
     # TODO #
     ########
     raw_prob_one = np.exp(sum(markov_blanket))
-    raw_prob_zero = 1
-    return raw_prob_one/(raw_prob_one + raw_prob_zero)
+    raw_prob_minus_one = np.exp(-sum(markov_blanket))
+    return raw_prob_one/(raw_prob_one + raw_prob_minus_one)
 
 
 def sample(i, j, Y, X, DUMB_SAMPLE=0):
@@ -90,7 +91,7 @@ def get_posterior_by_sampling(filename, initialization='same', logfile=None, DUM
                                       value: frequency of such count
     '''
     print("Read the file")
-    Y = read_txt_file(filename)
+    X = read_txt_file(filename)
 
     ########
     # TODO #
@@ -99,9 +100,8 @@ def get_posterior_by_sampling(filename, initialization='same', logfile=None, DUM
     beta = 1
     B = 100
     S = 1000
-    X = Y
     if initialization == 'same':
-        Y = X
+        Y = copy.deepcopy(X)
     elif initialization == 'neg':
         Y = [[-X[i][j] for j in range(len(X[0]))] for i in range(len(X))]
     else:
@@ -125,7 +125,7 @@ def get_posterior_by_sampling(filename, initialization='same', logfile=None, DUM
             f.write(str(t + 1) + "\t" + str(energy) + "\t" + "B\n")
         else:
             f.write(str(t + 1) + "\t" + str(energy) + "\t" + "S\n")
-            posterior += Y
+            posterior = posterior + (np.array(Y) == 1)
     f.close()
     posterior = posterior / S
     return posterior, None, None
@@ -145,8 +145,8 @@ def denoise_image(filename, initialization='rand', logfile=None, DUMB_SAMPLE=0):
                 Y[i][j] = .5*(1.0-Y[i][j])  # 1, -1 --> 1, 0
         return Y, frequencyZ
     else:
-        denoised = np.zeros(posterior.shape)
-        denoised[np.where(posterior < .5)] = 1
+        denoised = -np.ones(posterior.shape)
+        denoised[np.where(posterior > .5)] = 1
         return denoised, frequencyZ
 
 
@@ -172,10 +172,10 @@ def plot_energy(filename):
             it, en, phase = line.strip().split()
             if phase == 'B':
                 its_burn.append(it)
-                energies_burn.append(en)
+                energies_burn.append(float(en))
             elif phase == 'S':
                 its_sample.append(it)
-                energies_sample.append(en)
+                energies_sample.append(float(en))
             else:
                 print("bad phase: -%s-" % phase)
 
@@ -183,6 +183,9 @@ def plot_energy(filename):
     p2, = plt.plot(its_sample, energies_sample, 'b')
     plt.title(filename)
     plt.legend([p1, p2], ["burn in", "sampling"])
+    plt.yticks(np.arange(min(min(energies_burn), min(energies_sample)),
+                         max(max(energies_burn), max(energies_sample))+1, 10000))
+    plt.xticks(np.arange(0, 1100, 200))
     plt.savefig(filename)
     plt.close()
 
@@ -233,11 +236,9 @@ def perform_part_c():
     ########
     # TODO #
     ########
-    denoise_image('noisy_20.txt', 'rand', 'log_rand')
-    denoise_image('noisy_20.txt', 'neg', 'log_neg')
+    # denoise_image('noisy_20.txt', 'rand', 'log_rand')
+    # denoise_image('noisy_20.txt', 'neg', 'log_neg')
     denoised, frequencyZ = denoise_image('noisy_20.txt', 'same', 'log_same')
-    file = open('denoised_20', 'wb')
-    pickle.dump(denoised, file)
 
     # plot out the energy functions
     plot_energy("log_rand")
@@ -254,9 +255,43 @@ def perform_part_d():
     ########
 
     # save denoised images and original image to png figures
+    print('Perform part d')
+    denoised_10, _ = denoise_image('noisy_10.txt', 'same', 'log_same_10')
+    denoised_20, _ = denoise_image('noisy_20.txt', 'same', 'log_same_10')
+    file = open('denoised_10', 'wb')
+    pickle.dump(denoised_10, file)
+    file = open('denoised_20', 'wb')
+    pickle.dump(denoised_20, file)
+    file.close()
+    orig_img = read_txt_file('orig.txt')
     convert_to_png(denoised_10, "denoised_10")
     convert_to_png(denoised_20, "denoised_20")
     convert_to_png(orig_img, "orig_img")
+    columns = 3
+    rows = 1
+    noise_level = ['10', '20']
+    print('Noisy 10 error: ' + str(get_error(denoised_10, orig_img)))
+    print('Noisy 20 error: ' + str(get_error(denoised_20, orig_img)))
+    for noise in noise_level:
+        fig = plt.figure(figsize=(9, 3))
+        ax = []
+        ax.append(fig.add_subplot(rows, columns, 1))
+        ax[-1].set_title('Original')
+        img = plt.imread('orig_img.png')
+        plt.imshow(img)
+        plt.axis('off')
+        ax.append(fig.add_subplot(rows, columns, 2))
+        ax[-1].set_title('Noisy')
+        img = plt.imread('noisy_' + noise + '.png')
+        plt.imshow(img)
+        plt.axis('off')
+        ax.append(fig.add_subplot(rows, columns, 3))
+        ax[-1].set_title('Denoised')
+        img = plt.imread('denoised_' + noise + '.png')
+        plt.imshow(img)
+        plt.axis('off')
+        plt.savefig('compare_'+str(noise))
+    plt.close()
 
 
 def perform_part_e():
@@ -291,7 +326,7 @@ def perform_part_f():
 
 
 if __name__ == "__main__":
-    perform_part_c()
-    # perform_part_d()
+    # perform_part_c()
+    perform_part_d()
     # perform_part_e()
     # perform_part_f()
