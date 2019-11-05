@@ -110,6 +110,7 @@ def get_posterior_by_sampling(filename, initialization='same', logfile=None, DUM
     if not DUMB_SAMPLE:
         f = open(logfile, "w")
     posterior = np.zeros_like(Y)
+    count_Z = []
     for t in range(B + S):
         old_Y = copy.deepcopy(Y)
         if t % 100 == 0:
@@ -136,10 +137,12 @@ def get_posterior_by_sampling(filename, initialization='same', logfile=None, DUM
             else:
                 f.write(str(t + 1) + "\t" + str(energy) + "\t" + "S\n")
                 posterior = posterior + (np.array(Y) == 1)
+                count_Z.append(np.sum(np.array(Y)[125:163, 143:174] == 1))
     if not DUMB_SAMPLE:
         f.close()
     posterior = posterior / S
-    return posterior, Y, None
+    frequencyZ = Counter(count_Z)
+    return posterior, Y, frequencyZ
 
 
 def denoise_image(filename, initialization='rand', logfile=None, DUMB_SAMPLE=0):
@@ -350,15 +353,18 @@ def perform_part_f():
     '''
     Run Z square analysis
     '''
-
-    d, f = denoise_image('./pa4_data/noisy_10.txt',
-                         initialization='same', logfile='log_same')
+    orig_img = read_txt_file('orig.txt')
+    d, f = denoise_image('noisy_10.txt',
+                         initialization='rand', logfile='log_same')
+    print('Noisy 10 error: ' + str(get_error(d, orig_img)))
     width = 1.0
     plt.clf()
     plt.bar(f.keys(), f.values(), width, color='b')
     plt.show()
-    d, f = denoise_image('./pa4_data/noisy_20.txt',
-                         initialization='same', logfile='log_same')
+    d, f = denoise_image('noisy_20.txt',
+                         initialization='rand', logfile='log_same')
+    print('Noisy 20 error: ' + str(get_error(d, orig_img)))
+    
     plt.clf()
     plt.bar(f.keys(), f.values(), width, color='b')
     plt.show()
@@ -367,5 +373,5 @@ def perform_part_f():
 if __name__ == "__main__":
     # perform_part_c()
     # perform_part_d()
-    perform_part_e()
-    # perform_part_f()
+    # perform_part_e()
+    perform_part_f()
