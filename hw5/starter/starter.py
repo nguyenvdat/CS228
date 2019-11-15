@@ -8,6 +8,8 @@ import copy
 import math
 import time
 import matplotlib.pyplot as plt
+from scipy.stats import multivariate_normal
+from scipy.misc import logsumexp
 
 LABELED_FILE = "surveylabeled.dat"
 UNLABELED_FILE = "surveyunlabeled.dat"
@@ -256,8 +258,13 @@ def compute_log_likelihoodA(X, mu_0, mu_1, sigma_0, sigma_1, pi):
     # -------------------------------------------------------------------------
     # TODO: Code to compute ll
 
-    pass
-
+    N = 50
+    M = 20
+    for i in range(N):
+        for j in range(M):
+            ll0 = np.log(1 - pi) + np.log(p_xij_given_zij(X[i, j], mu_0, sigma_0))
+            ll1 = np.log(pi) + np.log(p_xij_given_zij(X[i, j], mu_1, sigma_1))
+            ll += np.logaddexp(ll0, ll1)
     # END_YOUR_CODE
     return ll
 
@@ -290,15 +297,20 @@ def perform_em_modelA(X, N, M, init_params, max_iters=50, eps=1e-2):
 
     # set up list that will hold log-likelihood over time
     log_likelihood = [compute_log_likelihoodA(X, mu_0, mu_1, sigma_0, sigma_1, pi)]
-
-    for iter in xrange(max_iters):
+    X_matrix = np.concatenate([X[i, j] for i in range(N) for j in range(M)])
+    # p_Z1 = np.zeros((N * M, 1))
+    p_Z1 = np.zeros(N * M)
+    for iter in range(max_iters):
         # -------------------------------------------------------------------------
         # TODO: Code for the E step
-
-        pass
-
+        # print(iter)
+        for i in range(N):
+            for j in range(M):
+                p_z0 = p_xij_given_zij(X[i, j], mu_0, sigma_0) * (1 - pi)
+                p_z1 = p_xij_given_zij(X[i, j], mu_1, sigma_1) * pi
+                p_z1 = p_z1 / (p_z0 + p_z1)
+                p_Z1[i*M + j] = p_z1;
         # END_YOUR_CODE
-
         pi = 0.0
         mu_0 = np.matrix([0.0, 0.0])
         mu_1 = np.matrix([0.0, 0.0])
@@ -308,13 +320,17 @@ def perform_em_modelA(X, N, M, init_params, max_iters=50, eps=1e-2):
         # -------------------------------------------------------------------------
         # TODO: Code for the M step
         # You should fill the values of pi, mu_0, mu_1, sigma_0, sigma_1
-
-        pass
+        pi = sum(p_Z1) / len(p_Z1)
+        mu_0 = np.average(X_matrix, weights=1 - p_Z1, axis=0)
+        mu_1 = np.average(X_matrix, weights=p_Z1, axis=0)
+        sigma_0 = np.cov(X_matrix.T, aweights=1 - p_Z1, bias=True)
+        sigma_1 = np.cov(X_matrix.T, aweights=p_Z1, bias=True, ddof=0)
 
         # END_YOUR_CODE
 
         # Check for convergence
         this_ll = compute_log_likelihoodA(X, mu_0, mu_1, sigma_0, sigma_1, pi)
+        print(this_ll)
         log_likelihood.append(this_ll)
         if np.abs((this_ll - log_likelihood[-2]) / log_likelihood[-2]) < eps:
             break
@@ -551,17 +567,17 @@ def perform_em(X, N, M, init_params, max_iters=50, eps=1e-2):
 
 # colorprint("MLE estimates for PA part A.i:", "teal")
 # colorprint("\tpi: %s\n\tmu_0: %s\n\tmu_1: %s\n\tsigma_0: %s\n\tsigma_1: %s"
-#     %(pi, mu0, mu1, sigma0, sigma1), "red")
+    # %(pi, mu0, mu1, sigma0, sigma1), "red")
 
 #==============================================================================    
 # pt A.ii
 
-# def random_covariance():
-#     P = np.matrix(np.random.randn(2,2))
-#     D = np.matrix(np.diag(np.random.rand(2) * 0.5 + 1.0))
-#     return P*D*P.T
+def random_covariance():
+    P = np.matrix(np.random.randn(2,2))
+    D = np.matrix(np.diag(np.random.rand(2) * 0.5 + 1.0))
+    return P*D*P.T
 
-# X, N, M = read_unlabeled_matrix(UNLABELED_FILE)
+X, N, M = read_unlabeled_matrix(UNLABELED_FILE)
 
 # initialization strategy 1
 # params = {}
