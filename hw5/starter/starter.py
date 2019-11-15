@@ -206,7 +206,10 @@ def MLE_Estimation():
     # -------------------------------------------------------------------------
     # TODO: Code to compute pi
 
-    pass
+    Z = np.array([Zij[i, j] for i in range(N) for j in range(M)])
+    X_0 = np.concatenate([Xij[i, j] for i in range(N) for j in range(M) if Zij[i, j] == 0])
+    X_1 = np.concatenate([Xij[i, j] for i in range(N) for j in range(M) if Zij[i, j] == 1])
+    pi = sum(Z == 1) / (N * M);
 
     # END_YOUR_CODE
 
@@ -216,7 +219,8 @@ def MLE_Estimation():
     # -------------------------------------------------------------------------
     # TODO: Code to compute mu0, mu1 
 
-    pass
+    mu0 = np.mean(X_0, axis=0)
+    mu1 = np.mean(X_1, axis=0)
 
     # END_YOUR_CODE
 
@@ -227,7 +231,8 @@ def MLE_Estimation():
     # -------------------------------------------------------------------------
     # TODO: Code to compute sigma0, sigma1 
 
-    pass
+    sigma0 = np.cov(X_0.T, bias=True)
+    sigma1 = np.cov(X_1.T, bias=True)
 
     # END_YOUR_CODE
 
