@@ -379,7 +379,6 @@ def estimate_leanings_of_precincts(X, N, M, params=None):
     Input:
         X: dictionary of measured statistics
             Dictionary is indexed by tuples (i,j).
-            The value assigned to each key is a (1,2) numpy.matrix encoding X_ij.
         N, M: Counts of precincts and voters
         params: parameters of the model given as a dictionary
             Dictionary shoudl contain params['pi'], params['mu_0'], 
@@ -405,13 +404,31 @@ def estimate_leanings_of_precincts(X, N, M, params=None):
     posterior_y = [None for i in range(N)] 
     # -------------------------------------------------------------------------
     # TODO: Code to compute posterior_y
+    N = 50
+    M = 20
+    for i in range(N):
+        ll_y0 = 0
+        ll_y1 = 0
+        for j in range(M):
+            # y = 1
+            ll_z0 = np.log(1 - MLE_lambda) + np.log(p_xij_given_zij(X[i, j], mu_0, sigma_0))
+            ll_z1 = np.log(MLE_lambda) + np.log(p_xij_given_zij(X[i, j], mu_1, sigma_1))
+            ll_y1 += np.logaddexp(ll_z0, ll_z1)
+            # y = 0
+            ll_z0 = np.log(MLE_lambda) + np.log(p_xij_given_zij(X[i, j], mu_0, sigma_0))
+            ll_z1 = np.log(1 - MLE_lambda) + np.log(p_xij_given_zij(X[i, j], mu_1, sigma_1))
+            ll_y0 += np.logaddexp(ll_z0, ll_z1)
+        p_y0 = (1 - MLE_phi) * np.exp(ll_y0)
+        p_y1 = MLE_phi * np.exp(ll_y1)
+        posterior_y[i] = p_y1 / (p_y0 + p_y1)
 
-    pass
+
 
     # END_YOUR_CODE
 
     summary = [(i, p, 1 if p>=.5 else 0) for i, p in enumerate(posterior_y)]
     return summary
+
 
 def plot_individual_inclinations(X, N, M, params=None):
     """Generate 2d plot of inidivudal statistics in each class.
@@ -437,7 +454,7 @@ def plot_individual_inclinations(X, N, M, params=None):
         sigma_1 = params['sigma_1']
         MLE_phi = params['phi']
         MLE_lambda = params['lambda']
-
+    summary = estimate_leanings_of_precincts(X, N, M)
     domain0 = []
     range0 = []
     domain1 = []
@@ -449,7 +466,17 @@ def plot_individual_inclinations(X, N, M, params=None):
         # -------------------------------------------------------------------------
         # TODO: Code to compute posterior_z
 
-        pass
+        p_y1 = summary[i][1]
+        p_y0 = 1 - p_y1
+        p_z0_given_y0 = MLE_lambda * p_xij_given_zij(x_ij, mu_0, sigma_0)
+        p_z0_given_y1 = (1 - MLE_lambda) * p_xij_given_zij(x_ij, mu_0, sigma_0)
+        p_z1_given_y0 = (1 - MLE_lambda) * p_xij_given_zij(x_ij, mu_1, sigma_1)
+        p_z1_given_y1 = MLE_lambda * p_xij_given_zij(x_ij, mu_1, sigma_1)
+        p_z0_given_y0 = p_z0_given_y0 / (p_z0_given_y0 + p_z1_given_y0)
+        p_z0_given_y1 = p_z0_given_y1 / (p_z0_given_y1 + p_z1_given_y1)
+        p_z0 = p_y1 * p_z0_given_y1 + p_y0 * p_z0_given_y0
+
+        posterior_z = [p_z0, 1 - p_z0]
 
         # END_YOUR_CODE
 
@@ -621,23 +648,23 @@ def random_covariance():
 #===============================================================================
 # pt. B.i
 
-MLE_phi, MLE_lambda = MLE_of_phi_and_lamdba()
+# MLE_phi, MLE_lambda = MLE_of_phi_and_lamdba()
 
-colorprint("MLE estimates for PA part B.i:", "teal")
-colorprint("\tMLE phi: %s\n\tMLE lambda: %s\n"%(MLE_phi, MLE_lambda), 'red')
+# colorprint("MLE estimates for PA part B.i:", "teal")
+# colorprint("\tMLE phi: %s\n\tMLE lambda: %s\n"%(MLE_phi, MLE_lambda), 'red')
 
 #===============================================================================
 # pt B.ii
 
-# X, N, M = read_unlabeled_matrix(UNLABELED_FILE)    
-# summary = estimate_leanings_of_precincts(X, N, M, params=None)
+X, N, M = read_unlabeled_matrix(UNLABELED_FILE)    
+summary = estimate_leanings_of_precincts(X, N, M, params=None)
 # TODO: print out the summary just calculated so you can report it in a table as
 # required for  this question
 
 pass
 
 # END_YOUR_CODE
-# plot_individual_inclinations(X, N, M, params=None)
+plot_individual_inclinations(X, N, M, params=None)
 
 #===============================================================================
 # pt B.iv
