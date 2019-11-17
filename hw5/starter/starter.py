@@ -361,8 +361,14 @@ def MLE_of_phi_and_lamdba():
 
     # -------------------------------------------------------------------------
     # TODO: Code to compute MLE_phi, MLE_lambda 
+    Z = np.array([[Z[i, j] for j in range(M)] for i in range(N)])
+    Y = np.array([1 if np.sum(Z[i,:]) > M/2 else 0 for i in range(N)])
+    MLE_phi = sum(Y == 1) / N
+    count_z_same = 0
+    for i in range(N):
+        count_z_same += sum(Z[i, :] == Y[i]) 
+    MLE_lambda = count_z_same / (N * M)
 
-    pass
 
     # END_YOUR_CODE
 
@@ -577,7 +583,7 @@ def random_covariance():
     D = np.matrix(np.diag(np.random.rand(2) * 0.5 + 1.0))
     return P*D*P.T
 
-X, N, M = read_unlabeled_matrix(UNLABELED_FILE)
+# X, N, M = read_unlabeled_matrix(UNLABELED_FILE)
 
 # initialization strategy 1
 # params = {}
@@ -615,10 +621,10 @@ X, N, M = read_unlabeled_matrix(UNLABELED_FILE)
 #===============================================================================
 # pt. B.i
 
-# MLE_phi, MLE_lambda = MLE_of_phi_and_lamdba()
+MLE_phi, MLE_lambda = MLE_of_phi_and_lamdba()
 
-# colorprint("MLE estimates for PA part B.i:", "teal")
-# colorprint("\tMLE phi: %s\n\tMLE lambda: %s\n"%(MLE_phi, MLE_lambda), 'red')
+colorprint("MLE estimates for PA part B.i:", "teal")
+colorprint("\tMLE phi: %s\n\tMLE lambda: %s\n"%(MLE_phi, MLE_lambda), 'red')
 
 #===============================================================================
 # pt B.ii
