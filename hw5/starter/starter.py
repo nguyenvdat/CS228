@@ -8,8 +8,6 @@ import copy
 import math
 import time
 import matplotlib.pyplot as plt
-from scipy.stats import multivariate_normal
-from scipy.misc import logsumexp
 
 LABELED_FILE = "surveylabeled.dat"
 UNLABELED_FILE = "surveyunlabeled.dat"
@@ -512,8 +510,23 @@ def compute_log_likelihoodB(X, mu_0, mu_1, sigma_0, sigma_1, phi, lambd):
     # -------------------------------------------------------------------------
     # TODO: Code to compute ll
 
-    pass
-
+    N = 50
+    M = 20
+    for i in range(N):
+        ll_y0 = 0
+        ll_y1 = 0
+        for j in range(M):
+            # y = 1
+            ll_z0 = np.log(1 - lambd) + np.log(p_xij_given_zij(X[i, j], mu_0, sigma_0))
+            ll_z1 = np.log(lambd) + np.log(p_xij_given_zij(X[i, j], mu_1, sigma_1))
+            ll_y1 += np.logaddexp(ll_z0, ll_z1)
+            # y = 0
+            ll_z0 = np.log(lambd) + np.log(p_xij_given_zij(X[i, j], mu_0, sigma_0))
+            ll_z1 = np.log(1 - lambd) + np.log(p_xij_given_zij(X[i, j], mu_1, sigma_1))
+            ll_y0 += np.logaddexp(ll_z0, ll_z1)
+        p_y0 = np.log(1 - phi) + ll_y0
+        p_y1 = np.log(phi) + ll_y1
+        ll += np.logaddexp(p_y0, p_y1)
     # END_YOUR_CODE
 
     return ll
@@ -546,14 +559,47 @@ def perform_em(X, N, M, init_params, max_iters=50, eps=1e-2):
     lambd = init_params['lambda']
 
     log_likelihood = [compute_log_likelihoodB(X, mu_0, mu_1, sigma_0, sigma_1, phi, lambd)]
+    X_matrix = np.concatenate([X[i, j] for i in range(N) for j in range(M)])
 
-    for iter in xrange(max_iters):
+    for iter in range(max_iters):
 
         # -------------------------------------------------------------------------
         # TODO: Code for the E step
 
-        pass
-
+        pos_y = np.zeros((N, 2)) # P(yi = 1| xi,1:M, theta)
+        for i in range(N):
+            ll_y0 = 0
+            ll_y1 = 0
+            for j in range(M):
+                # y = 1
+                ll_z0 = np.log(1 - lambd) + np.log(p_xij_given_zij(X[i, j], mu_0, sigma_0))
+                ll_z1 = np.log(lambd) + np.log(p_xij_given_zij(X[i, j], mu_1, sigma_1))
+                ll_y1 += np.logaddexp(ll_z0, ll_z1)
+                # y = 0
+                ll_z0 = np.log(lambd) + np.log(p_xij_given_zij(X[i, j], mu_0, sigma_0))
+                ll_z1 = np.log(1 - lambd) + np.log(p_xij_given_zij(X[i, j], mu_1, sigma_1))
+                ll_y0 += np.logaddexp(ll_z0, ll_z1)
+            p_y0 = (1 - phi) * np.exp(ll_y0)
+            p_y1 = phi * np.exp(ll_y1)
+            pos_y[i, 1] = p_y1 / (p_y0 + p_y1)
+            pos_y[i, 0] = 1 - pos_y[i, 1]
+        pos_yz = np.zeros((N, M, 2, 2)) # P(yi, zij|xi,1:M, theta)
+        for i in range(N):
+            for j in range(M):
+                # yi = 1
+                p_z1 = lambd * p_xij_given_zij(X[i, j], mu_1, sigma_1) # P(zij=1|yi=1, xij)
+                p_z0 = (1 - lambd) * p_xij_given_zij(X[i, j], mu_0, sigma_0)
+                p_z1 = p_z1 / (p_z1 + p_z0)
+                pos_yz[i, j, 1, 0] = (1 - p_z1) * pos_y[i, 1]
+                pos_yz[i, j, 1, 1] = p_z1 * pos_y[i, 1]
+                # yi = 0
+                p_z1 = (1 - lambd) * p_xij_given_zij(X[i, j], mu_1, sigma_1) # P(zij=1|yi=0, xij)
+                p_z0 = lambd * p_xij_given_zij(X[i, j], mu_0, sigma_0)
+                p_z1 = p_z1 / (p_z1 + p_z0)
+                pos_yz[i, j, 0, 0] = (1 - p_z1) * pos_y[i, 0]
+                pos_yz[i, j, 0, 1] = p_z1 * pos_y[i, 0]
+        pos_z = np.sum(pos_yz, axis=2) # P(zij|x_i,1:M) N x M x 2
+        
         # END_YOUR_CODE
 
         phi, lambd = 0.0, 0.0
@@ -566,16 +612,25 @@ def perform_em(X, N, M, init_params, max_iters=50, eps=1e-2):
         # -------------------------------------------------------------------------
         # TODO: Code for the M step
         # You need to compute the above parameters
+        pos_z0 = np.reshape(pos_z[:, :, 0], (-1,))
+        pos_z1 = np.reshape(pos_z[:, :, 1], (-1,))
+        phi = np.sum(pos_y[:, 1]) / N
+        lambd = (np.sum(pos_yz[:, :, 0, 0]) + np.sum(pos_yz[:, :, 1, 1])) / np.sum(pos_yz)
+        mu_0 = np.average(X_matrix, weights=pos_z0, axis=0)
+        mu_1 = np.average(X_matrix, weights=pos_z1, axis=0)
+        sigma_0 = np.cov(X_matrix.T, aweights=pos_z0, bias=True)
+        sigma_1 = np.cov(X_matrix.T, aweights=pos_z1, bias=True)
 
-        pass
 
         # END_YOUR_CODE
 
         # Check for convergence
         this_ll = compute_log_likelihoodB(X, mu_0, mu_1, sigma_0, sigma_1, phi, lambd)
+        print(this_ll)
         log_likelihood.append(this_ll)
         if np.abs((this_ll - log_likelihood[-2]) / log_likelihood[-2]) < eps:
             break
+            # pass
 
     # pack the parameters and return
     params = {}
@@ -656,15 +711,15 @@ def random_covariance():
 #===============================================================================
 # pt B.ii
 
-X, N, M = read_unlabeled_matrix(UNLABELED_FILE)    
-summary = estimate_leanings_of_precincts(X, N, M, params=None)
+# X, N, M = read_unlabeled_matrix(UNLABELED_FILE)    
+# summary = estimate_leanings_of_precincts(X, N, M, params=None)
 # TODO: print out the summary just calculated so you can report it in a table as
 # required for  this question
 
 pass
 
 # END_YOUR_CODE
-plot_individual_inclinations(X, N, M, params=None)
+# plot_individual_inclinations(X, N, M, params=None)
 
 #===============================================================================
 # pt B.iv
@@ -687,7 +742,6 @@ plot_individual_inclinations(X, N, M, params=None)
 # params['phi'] = MLE_phi
 # params['lambda'] = MLE_lambda
 # params, log_likelihood = perform_em(X, N, M, params)
-# print log_likelihood
 # params_list = [params]
 # log_likelihood_list = [log_likelihood]
 
@@ -706,12 +760,18 @@ plot_individual_inclinations(X, N, M, params=None)
 
 # plt.figure()
 # for i, params in enumerate(params_list):
-#     print params
+#     # print(params)
 #     plt.plot(log_likelihood_list[i])
 # plt.legend(['MLE initialization', 'Random initialization', 'Random initialization'], loc=4)
 # plt.xlabel('Iteration')
 # plt.ylabel('Log likelihood')
 # plt.show()
+
+# print(np.argmax(log_likelihood_list))
+# best_params = params_list[np.argmax(log_likelihood_list)]
+# summary = estimate_leanings_of_precincts(X, N, M, params=best_params)
+# print(summary)
+# plot_individual_inclinations(X, N, M, params=best_params)
 
 # #===============================================================================
 # # pt B.v
